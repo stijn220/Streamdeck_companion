@@ -62,23 +62,134 @@ class Display:
         self.oled.image(self.image)
         self.oled.show()
 
-class Menu:
-    def __init__(self):
-        # Initialize menu structure and variables
-        pass
+class Menus:
+    def __init__(self, display):
+        self.menu = OrderedDict([
+            ("Main", OrderedDict([
+                ("Local IP", None),
+                ("Remote IP", None),
+                ("Settings", OrderedDict([
+                    ("Change IP", OrderedDict([
+                        ("Local IP", OrderedDict([
+                            ("DHCP", None),
+                            ("IP Address", None),
+                            ("Back", None),
+                        ])),
+                        ("Remote IP", OrderedDict([
+                            ("IP address", None),
+                            ("Back", None),
+                        ])),
+                        ("Back", None),
+                    ])),
+                    ("Service", OrderedDict([
+                        ("Masterpin", OrderedDict([
+                            ("Change Lock", None),
+                            ("Restart Network", None),
+                            ("Restart Companion", None),
+                            ("Restart PI", None),
+                            ("Back", None),
+                        ])),
+                        ("Back", None),
+                    ])),
+                    ("Back", None),
+                ])),
+            ])),
+        ])
+        self.current_menu = self.menu["Main"]
+        self.menu_history = [self.menu["Main"]]
+        self.display = display
 
-    def load_new(self):
-        # Load a new display based on the current selection
-        pass
+    def menu_name(self, menu_value, current_menu=None):
+        current_menu = current_menu or self.current_menu  # Use current_menu if provided, otherwise use self.current_menu
+        for key, value in current_menu.items():
+            if value == menu_value:
+                return key
+            elif isinstance(value, dict):
+                result = self.menu_name(menu_value, value)
+                if result is not None:
+                    return result
+        return ""  # Terminate recursion if no match is found    
+    def update_display(self, highlight = 1):
+        self.display.clear_display()
+        line = 1
+        line_height = 10
+        for key, value in self.current_menu.items():
+            if highlight == line:
+                self.display.draw.rectangle(
+                    (0, (line - 1) * line_height + 15, self.display.width,
+                     line_height + (line - 1) * line_height + 15),
+                    outline=1,
+                    fill=1,
+                )
+                self.display.draw.text((0, (line - 1) * line_height + 15), ">", font=self.display.font, fill=0)
+                self.display.draw.text((10, (line - 1) * line_height + 15), key, font=self.display.font, fill=0)
+            else:
+                self.display.draw.text((0, (line - 1) * line_height + 15), key, font=self.display.font, fill=1)
+            line += 1
+
+        logo = "Peitsman | " + self.menu_name(self.current_menu)
+        self.display.draw.text((0, 0), logo, font=self.display.font, fill=1)
+        
+        self.display.update_display()
+
 
 
 class InputHandler:
-    def __init__(self, clk_pin, dt_pin, sw_pin, lock_timeout, sleep_time):
+    def __init__(self, clk_pin, dt_pin, sw_pin, lock_timeout, sleep_time, menu):
         self.clk_pin = clk_pin
         self.dt_pin = dt_pin
         self.sw_pin = sw_pin
         self.lock_timeout = lock_timeout
         self.sleep_time = sleep_time
+        self.menu = menu
+        self.previous_value = True
+        self.button_down = False
+        self.last_interaction_time = time.time()
+        self.counter = 0  # Initialize counter
+
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.clk_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(self.dt_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(self.sw_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+    def handle_input(self):
+        current_step_pin = GPIO.input(self.clk_pin)
+        if self.previous_value != current_step_pin:
+            if current_step_pin == False:
+                # Turned Left
+                if GPIO.input(self.dt_pin) == False:
+                    self.counter -= 1
+                    print("Counter Decremented:", self.counter)
+
+                # Turned Right
+                else:
+                    self.counter += 1
+                    print("Counter Incremented:", self.counter)
+
+                self.last_interaction_time = time.time()
+                self.previous_value = current_step_pin
+
+        current_button_pin = GPIO.input(self.sw_pin)
+        if current_button_pin == False and not self.button_down:
+            self.button_down = True
+
+        if current_button_pin == True and self.button_down:
+            self.button_down = False
+            self.last_interaction_time = time.time()
+            self.menu.load_new_display()
+
+        if time.time() - self.last_interaction_time > self.lock_timeout:
+            self.menu.lock_menu()
+
+        time.sleep(self.sleep_time)
+
+    def __init__(self, clk_pin, dt_pin, sw_pin, lock_timeout, sleep_time, menu):
+        self.clk_pin = clk_pin
+        self.dt_pin = dt_pin
+        self.sw_pin = sw_pin
+        self.lock_timeout = lock_timeout
+        self.sleep_time = sleep_time
+        self.menu = menu
         self.previous_value = True
         self.button_down = False
         self.last_interaction_time = time.time()
@@ -88,25 +199,25 @@ class InputHandler:
         GPIO.setup(self.dt_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         GPIO.setup(self.sw_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-    def handle_input(self, update_display_func, load_new_display_func, lock_menu_func):
+    def handle_input(self):
         current_step_pin = GPIO.input(self.clk_pin)
         if self.previous_value != current_step_pin:
             if current_step_pin == False:
-                # Turned Left 
+                # Turned Left
                 if GPIO.input(self.dt_pin) == False:
-                    if highlight > 1:
-                        highlight -= 1
+                    if self.menu.highlight > 1:
+                        self.menu.highlight -= 1
                     else:
-                        highlight = amount_lines  
+                        self.menu.highlight = self.menu.amount_lines  
 
                 # Turned Right
                 else:
-                    if highlight < amount_lines:
-                        highlight += 1
+                    if self.menu.highlight < self.menu.amount_lines:
+                        self.menu.highlight += 1
                     else:
-                        highlight = 1
+                        self.menu.highlight = 1
 
-                update_display_func()
+                self.menu.update_display()
             self.last_interaction_time = time.time()
             self.previous_value = current_step_pin
 
@@ -117,13 +228,12 @@ class InputHandler:
         if current_button_pin == True and self.button_down:
             self.button_down = False
             self.last_interaction_time = time.time()
-            load_new_display_func()
+            self.menu.load_new_display()
 
         if time.time() - self.last_interaction_time > self.lock_timeout:
-            lock_menu_func()
+            self.menu.lock_menu()
 
-        time.sleep(sleep_time)
-
+        time.sleep(self.sleep_time)
 
 class Lock:
     def __init__(self):
@@ -189,61 +299,27 @@ class SatelliteConfigManager:
 
 class MenuSystem:
     def __init__(self):
-        self.display = Display(self.menu)
-        self.menu = Menu()
-        self.input_handler = InputHandler()
+        self.display = Display()
+        self.menus = Menus(self.display)
         self.lock = Lock()
         self.network = Network()
-        self.satellite = SatelliteConfigManager()
+        self.satellite = SatelliteConfigManager('/home/satellite/satellite-config.json')
+        self.input_handler = InputHandler(
+            clk_pin=17, dt_pin=18, sw_pin=27,
+            lock_timeout=300, sleep_time=0.1,
+            menu=self.menus
+        )
 
-    def setup(self):
-        with open(
-            "/home/peitsman/Streamdeck Companion project/Config.json", "r"
-        ) as file:
-            self.config = json.load(file)
-
-        self.menu = OrderedDict([
-            ("Main", OrderedDict([
-                (local_ip, None),
-                (remote_ip, None),
-                ("Settings", OrderedDict([
-                    ("Change IP", OrderedDict([
-                        ("Local IP", OrderedDict([
-                            ("DHCP", None),
-                            ("IP Address", None),
-                            ("Back", None),
-                        ])),
-                        ("Remote IP", OrderedDict([
-                            ("IP address", None),
-                            ("Back", None),
-                        ])),
-                        ("Back", None),
-                    ])),
-                    ("Service", OrderedDict([
-                        ("Masterpin", OrderedDict([
-                            ("Change Lock", None),
-                            ("Restart Network", None),
-                            ("Restart Companion", None),
-                            ("Restart PI", None),
-                            ("Back", None),
-                        ])),
-                        ("Back", None),
-                    ])),
-                    ("Back", None),
-                ])),    
-            ])),
-        ])
-
-        self.display.display_logo()
+        self.display.display_logo('/home/peitsman/Streamdeck Companion project/assets/peitsman black white.bmp')
 
     def run(self):
-        while True:
-            self.input_handler.handle_input()
-            self.lock.check_lock()
-            time.sleep(0.1)  # Adjust sleep time as needed
+        self.menus.update_display()
+        # while True:
+        #     print(self.input_handler.handle_input())
+        #     self.lock.check_lock()
+        #     time.sleep(0.1)  # Adjust sleep time as needed
 
 
-# if __name__ == "__main__":
-#     menu_system = MenuSystem()
-#     menu_system.setup()
-#     menu_system.run()
+if __name__ == "__main__":
+    menu_system = MenuSystem()
+    menu_system.run()

@@ -10,10 +10,10 @@ class IPChanger:
         self.connection_name = connection_name
         self.config_path = "/home/peitsman/Streamdeck Companion project/Config.json"
 
-    def get_ip_address(self, interface = eth0):
+    def get_ip_address(self, interface='enxb827eb278821'):
         #Get the current IP address of the system.
         try:
-            result = subprocess.run(["ip", "addr", "show", self.interface], capture_output=True, text=True, check=True)
+            result = subprocess.run(["ip", "addr", "show", interface], capture_output=True, text=True, check=True)
             # Use regular expression to extract the IPv4 address
             match = re.search(r'inet (\d+\.\d+\.\d+\.\d+)', result.stdout)
             if match:
@@ -22,7 +22,7 @@ class IPChanger:
             else:
                 return None
         except subprocess.CalledProcessError:
-            print(f"Error: Unable to retrieve IP address for interface {self.connection_name}")
+            print(f"Error: Unable to retrieve IP address for interface {interface}")
             return None
 
 
@@ -42,7 +42,6 @@ class IPChanger:
 
         except subprocess.CalledProcessError as e:
             return f"Error: {e}"
-    
     def get_subnet_mask(self):
         return '255.255.255.0'
     #TODO get subnet mask
@@ -79,8 +78,6 @@ class IPChanger:
 
             # Set the new IPv4 address using nmcli
             subprocess.run(['sudo', 'nmcli', 'connection', 'modify', self.connection_name, 'ipv4.address', f'{ip_address}/24'], check=True)
-            #subprocess.run(['sudo', 'nmcli', 'connection', 'modify', self.connection_name, 'ipv4.addresses', ip_address])
-
             #sudo nmcli connection modify 'Wired connection 1' ipv4.address 192.168.1.240/24
 
         except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError) as e:

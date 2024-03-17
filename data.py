@@ -82,12 +82,3 @@ def change_code(new_code):
     
     with open('/home/peitsman/Streamdeck Companion project/Config.json', 'w') as file:
         json.dump(config, file, indent=4)
-
-def update_last_ip(new_ip):
-    with open('/home/peitsman/Streamdeck Companion project/Config.json', 'r') as file:
-        config = json.load(file)
-
-    config['last_ip'] = new_ip
-    
-    with open('/home/peitsman/Streamdeck Companion project/Config.json', 'w') as file:
-        json.dump(config, file, indent=4)

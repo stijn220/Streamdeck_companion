@@ -1,7 +1,7 @@
 #Streamdeck Companion project
 #DEV: Stijn van Hees
-#Update date: 17/3/2024
-#VERSION: 1.17.3.24
+#Update date: 4/2/2024
+#VERSION: 1.4.2.24
 
 
 #todo's:
@@ -28,11 +28,14 @@ def display_logo():
     oled.show()
     time.sleep(5)
 
+cpu_temperature = "CPU TEMP: {}C".format(data.CPU_temp())
+cpu_load = "CPU LOAD: {}%".format(data.CPU_load())
 with open('/home/peitsman/Streamdeck Companion project/Config.json', 'r') as file:
     config = json.load(file)
 
 DHCP = config['DHCP']
 Subnet = config['last_subnet']
+Companion_IP_address = config['companion_ip']
 ip_changer_instance = IPChanger()
 satellite = SatelliteConfigManager("/boot/satellite-config")
 satellite.start_service()
@@ -46,6 +49,7 @@ menu = OrderedDict([
                 ("Streamdeck IP", OrderedDict([
                     ("DHCP", None),
                     ("IP Address", None),
+                    #("Subnet Mask", None),
                     ("Back", None),
                 ])),
                 ("Companion IP", OrderedDict([
@@ -135,9 +139,15 @@ def write_config(config):
 
 #Update the variables
 def update_variable():
+    global cpu_temperature, cpu_load, DHCP
+    cpu_temperature = data.CPU_temp()
+    cpu_load = data.CPU_load()
+
+    cpu_temperature = "CPU TEMP: {}C".format(data.CPU_temp())
+    cpu_load = "CPU LOAD: {}%".format(data.CPU_load())
+
     # DHCP = ip_changer_instance.get_ipv4_configuration_method()
     # data.edit_menu_DHCP(DHCP, menu["Main"]["Settings"]["Change IP"]["Streamdeck IP"])
-    pass
 
 # Function to update the display with the current menu
 def update_display(current_menu, shift, highlight = 1):
@@ -251,7 +261,6 @@ def edit_streamdeck_ip():
                 new_ip = '.'.join(map(str, ip_sections))
                 reboot_network_screen()
                 ip_changer_instance.set_ipv4_address(new_ip)
-                data.update_last_ip(new_ip)
                 Pi().restart_network()
 
             else:
