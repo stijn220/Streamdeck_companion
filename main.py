@@ -23,7 +23,7 @@ import data
 from PI import IPChanger, Pi, SatelliteConfigManager
 
 def display_logo():
-    image = Image.open("/home/peitsman/Streamdeck Companion project/image/peitsman black white.bmp").convert("1")
+    image = Image.open("/home/peitsman/Streamdeck Companion project/assets/peitsman black white.bmp").convert("1")
     oled.image(image)
     oled.show()
     time.sleep(5)
@@ -35,7 +35,6 @@ with open('/home/peitsman/Streamdeck Companion project/Config.json', 'r') as fil
 
 DHCP = config['DHCP']
 Subnet = config['last_subnet']
-Companion_IP_address = config['companion_ip']
 ip_changer_instance = IPChanger()
 satellite = SatelliteConfigManager("/boot/satellite-config")
 satellite.start_service()

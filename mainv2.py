@@ -1,12 +1,12 @@
-# Streamdeck Companion project
-# DEV: Stijn van Hees
-# Update date: 17/3/2024
-# VERSION: 2.17.3.24
+#Streamdeck Companion project
+#DEV: Stijn van Hees
+#Update date: 18/3/2024
+#VERSION: 2.18.3.24
 
 
-# todo's:
-# TODO update every 5 seconds main menu
-
+#todo's:
+#TODO update every 5 seconds main menu
+#TODO Menu Title
 # - Lock Pin: 4848 (Deze kan via het menu worden aangepast indien gewenst)
 # - Service Pin: 4592 (Deze kan alleen softwarematig veranderd worden)
 
@@ -23,6 +23,7 @@ import socket
 import subprocess
 import os
 import re
+from encoder import Encoder
 
 
 class Display:
@@ -63,7 +64,7 @@ class Display:
         self.oled.show()
 
 class Menus:
-    def __init__(self, display):
+    def __init__(self, display, menu_system):
         self.menu = OrderedDict([
             ("Main", OrderedDict([
                 ("Local IP", None),
@@ -98,18 +99,23 @@ class Menus:
         self.current_menu = self.menu["Main"]
         self.menu_history = [self.menu["Main"]]
         self.display = display
+        self.menu_system = menu_system
+        self.highlight = 1
 
     def menu_name(self, menu_value, current_menu=None):
-        current_menu = current_menu or self.current_menu  # Use current_menu if provided, otherwise use self.current_menu
+        if current_menu is None:
+            current_menu = self.current_menu
         for key, value in current_menu.items():
             if value == menu_value:
                 return key
             elif isinstance(value, dict):
-                result = self.menu_name(menu_value, value)
+                result = self.menu_name(menu_value=menu_value, current_menu=value)
                 if result is not None:
                     return result
-        return ""  # Terminate recursion if no match is found    
-    def update_display(self, highlight = 1):
+        return 'None'
+
+    def update_display(self, highlight=1):
+        self.highlight = highlight
         self.display.clear_display()
         line = 1
         line_height = 10
@@ -132,108 +138,16 @@ class Menus:
         
         self.display.update_display()
 
+    def load_new_menu(self):
+        selected_menu = list(self.current_menu.keys())[self.highlight - 1]
+        if self.current_menu[selected_menu] is not None:
+            previous_menu = self.current_menu
+            self.current_menu = self.current_menu[selected_menu]
+            menu_system.highlight = 1
+            self.menu_history.append(previous_menu)
+            self.update_display(1)
 
 
-class InputHandler:
-    def __init__(self, clk_pin, dt_pin, sw_pin, lock_timeout, sleep_time, menu):
-        self.clk_pin = clk_pin
-        self.dt_pin = dt_pin
-        self.sw_pin = sw_pin
-        self.lock_timeout = lock_timeout
-        self.sleep_time = sleep_time
-        self.menu = menu
-        self.previous_value = True
-        self.button_down = False
-        self.last_interaction_time = time.time()
-        self.counter = 0  # Initialize counter
-
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.clk_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(self.dt_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(self.sw_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-    def handle_input(self):
-        current_step_pin = GPIO.input(self.clk_pin)
-        if self.previous_value != current_step_pin:
-            if current_step_pin == False:
-                # Turned Left
-                if GPIO.input(self.dt_pin) == False:
-                    self.counter -= 1
-                    print("Counter Decremented:", self.counter)
-
-                # Turned Right
-                else:
-                    self.counter += 1
-                    print("Counter Incremented:", self.counter)
-
-                self.last_interaction_time = time.time()
-                self.previous_value = current_step_pin
-
-        current_button_pin = GPIO.input(self.sw_pin)
-        if current_button_pin == False and not self.button_down:
-            self.button_down = True
-
-        if current_button_pin == True and self.button_down:
-            self.button_down = False
-            self.last_interaction_time = time.time()
-            self.menu.load_new_display()
-
-        if time.time() - self.last_interaction_time > self.lock_timeout:
-            self.menu.lock_menu()
-
-        time.sleep(self.sleep_time)
-
-    def __init__(self, clk_pin, dt_pin, sw_pin, lock_timeout, sleep_time, menu):
-        self.clk_pin = clk_pin
-        self.dt_pin = dt_pin
-        self.sw_pin = sw_pin
-        self.lock_timeout = lock_timeout
-        self.sleep_time = sleep_time
-        self.menu = menu
-        self.previous_value = True
-        self.button_down = False
-        self.last_interaction_time = time.time()
-
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.clk_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(self.dt_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(self.sw_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-    def handle_input(self):
-        current_step_pin = GPIO.input(self.clk_pin)
-        if self.previous_value != current_step_pin:
-            if current_step_pin == False:
-                # Turned Left
-                if GPIO.input(self.dt_pin) == False:
-                    if self.menu.highlight > 1:
-                        self.menu.highlight -= 1
-                    else:
-                        self.menu.highlight = self.menu.amount_lines  
-
-                # Turned Right
-                else:
-                    if self.menu.highlight < self.menu.amount_lines:
-                        self.menu.highlight += 1
-                    else:
-                        self.menu.highlight = 1
-
-                self.menu.update_display()
-            self.last_interaction_time = time.time()
-            self.previous_value = current_step_pin
-
-        current_button_pin = GPIO.input(self.sw_pin)
-        if current_button_pin == False and not self.button_down:
-            self.button_down = True
-
-        if current_button_pin == True and self.button_down:
-            self.button_down = False
-            self.last_interaction_time = time.time()
-            self.menu.load_new_display()
-
-        if time.time() - self.last_interaction_time > self.lock_timeout:
-            self.menu.lock_menu()
-
-        time.sleep(self.sleep_time)
 
 class Lock:
     def __init__(self):
@@ -244,11 +158,9 @@ class Lock:
         # Check if the system is locked and handle accordingly
         pass
 
-
 class Network:
     def __init__(self):
         pass
-
 
 class SatelliteConfigManager:
     def __init__(self, file_path):
@@ -296,29 +208,35 @@ class SatelliteConfigManager:
         except subprocess.CalledProcessError as e:
             raise ValueError(f"Error rebooting: {e}")
 
-
 class MenuSystem:
     def __init__(self):
         self.display = Display()
-        self.menus = Menus(self.display)
+        self.menus = Menus(self.display, self)
         self.lock = Lock()
         self.network = Network()
         self.satellite = SatelliteConfigManager('/home/satellite/satellite-config.json')
-        self.input_handler = InputHandler(
-            clk_pin=17, dt_pin=18, sw_pin=27,
-            lock_timeout=300, sleep_time=0.1,
-            menu=self.menus
-        )
+        self.highlight = 1
+        self.encoder = Encoder(6, 13, 5, self.update, self.button)
+        #self.display.display_logo('/home/peitsman/Streamdeck Companion project/assets/peitsman black white.bmp')
 
-        self.display.display_logo('/home/peitsman/Streamdeck Companion project/assets/peitsman black white.bmp')
+    def update(self, value, direction):
+        if direction == "R":
+            self.highlight += 1
+            if self.highlight > len(self.menus.current_menu):
+                self.highlight = 1
+        elif direction == "L":
+            self.highlight -= 1
+            if self.highlight < 1:
+                self.highlight = len(self.menus.current_menu)
+        self.menus.update_display(self.highlight)
+    
+    def button(self):
+        self.menus.load_new_menu()
 
     def run(self):
         self.menus.update_display()
-        # while True:
-        #     print(self.input_handler.handle_input())
-        #     self.lock.check_lock()
-        #     time.sleep(0.1)  # Adjust sleep time as needed
-
+        while True:
+            self.lock.check_lock()
 
 if __name__ == "__main__":
     menu_system = MenuSystem()
