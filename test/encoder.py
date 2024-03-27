@@ -2,17 +2,23 @@ import RPi.GPIO as GPIO
 
 class Encoder:
 
-    def __init__(self, leftPin, rightPin, callback=None):
+    def __init__(self, leftPin, rightPin, buttonPin,callback=None, button_callback=None):
         self.leftPin = leftPin
         self.rightPin = rightPin
+        self.buttonPin = buttonPin
         self.value = 0
         self.state = '00'
         self.direction = None
         self.callback = callback
+        self.button_callback = button_callback
+
+        GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.leftPin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.setup(self.rightPin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        GPIO.setup(self.buttonPin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         GPIO.add_event_detect(self.leftPin, GPIO.BOTH, callback=self.transitionOccurred)  
         GPIO.add_event_detect(self.rightPin, GPIO.BOTH, callback=self.transitionOccurred)  
+        GPIO.add_event_detect(self.buttonPin, GPIO.FALLING, callback=self.buttonPressed, bouncetime=300)
 
     def transitionOccurred(self, channel):
         p1 = GPIO.input(self.leftPin)
@@ -32,7 +38,7 @@ class Encoder:
                 if self.direction == "L":
                     self.value = self.value - 1
                     if self.callback is not None:
-                        self.callback(self.value, self.direction, newState)
+                        self.callback(self.value, self.direction)
 
         elif self.state == "10": # R3 or L1
             if newState == "11": # Turned left 1
@@ -41,7 +47,7 @@ class Encoder:
                 if self.direction == "R":
                     self.value = self.value + 1
                     if self.callback is not None:
-                        self.callback(self.value, self.direction, newState)
+                        self.callback(self.value, self.direction)
 
         else: # self.state == "11"
             if newState == "01": # Turned left 1
@@ -52,13 +58,17 @@ class Encoder:
                 if self.direction == "L":
                     self.value = self.value - 1
                     if self.callback is not None:
-                        self.callback(self.value, self.direction, newState)
+                        self.callback(self.value, self.direction)
                 elif self.direction == "R":
                     self.value = self.value + 1
                     if self.callback is not None:
-                        self.callback(self.value, self.direction, newState)
+                        self.callback(self.value, self.direction)
                 
         self.state = newState
 
+    def buttonPressed(self, channel):
+        if self.button_callback is not None:
+            self.button_callback()
+    
     def getValue(self):
         return self.value

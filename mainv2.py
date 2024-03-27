@@ -52,6 +52,16 @@ class Display:
         self.oled.show()
         time.sleep(5)
 
+    def reboot_network_screen(self):
+        self.draw.text((0, 0), "Peitsman | Network", font=self.font, fill=1)
+        self.draw.text((0,20),"Restarting network...", font=self.font, fill=1)
+
+    def reboot_pi_screen(self):
+        self.draw.text((0, 0), "Peitsman | Restart", font=self.font, fill=1)
+        self.draw.text((0,20)," Restarting PI...", font=self.font, fill=1)
+
+    
+
     def clear_display(self):
         self.draw.rectangle((0, 0, self.width, self.height), fill=0)
         self.oled.fill(0)    
@@ -59,16 +69,19 @@ class Display:
     def draw_text(self, text, position, font_color=1):
         self.draw.text(position, text, font=self.font, fill=font_color)
 
+
+
     def update_display(self):
         self.oled.image(self.image)
         self.oled.show()
 
 class Menus:
-    def __init__(self, display, menu_system):
+    def __init__(self, display, menu_systems):
+        self.menu_system = menu_systems
         self.menu = OrderedDict([
             ("Main", OrderedDict([
-                ("Local IP", None),
-                ("Remote IP", None),
+                (f"IP {self.menu_system.get_ipv4_placeholder()}", None),
+                (f"COM {self.menu_system.get_companion_ip()}", None),
                 ("Settings", OrderedDict([
                     ("Change IP", OrderedDict([
                         ("Local IP", OrderedDict([
@@ -99,20 +112,7 @@ class Menus:
         self.current_menu = self.menu["Main"]
         self.menu_history = [self.menu["Main"]]
         self.display = display
-        self.menu_system = menu_system
         self.highlight = 1
-
-    def menu_name(self, menu_value, current_menu=None):
-        if current_menu is None:
-            current_menu = self.current_menu
-        for key, value in current_menu.items():
-            if value == menu_value:
-                return key
-            elif isinstance(value, dict):
-                result = self.menu_name(menu_value=menu_value, current_menu=value)
-                if result is not None:
-                    return result
-        return 'None'
 
     def update_display(self, highlight=1):
         self.highlight = highlight
@@ -138,6 +138,18 @@ class Menus:
         
         self.display.update_display()
 
+    def menu_name(self, menu_value, current_menu=None):
+        if current_menu is None:
+            current_menu = self.current_menu
+        for key, value in current_menu.items():
+            if value == menu_value:
+                return key
+            elif isinstance(value, dict):
+                result = self.menu_name(menu_value=menu_value, current_menu=value)
+                if result is not None:
+                    return result
+        return 'None'
+
     def load_new_menu(self):
         selected_menu = list(self.current_menu.keys())[self.highlight - 1]
         if self.current_menu[selected_menu] is not None:
@@ -146,8 +158,33 @@ class Menus:
             menu_system.highlight = 1
             self.menu_history.append(previous_menu)
             self.update_display(1)
-
-
+        elif selected_menu == "Back" and len(self.menu_history) > 1:
+            self.current_menu = self.menu_history.pop()
+            menu_system.highlight = 1
+            self.update_display(1)
+        elif selected_menu == f"IP {self.menu_system.get_ipv4_placeholder()}" or selected_menu == "IP Address":
+            print('Streamdeck IP')
+            #TODO edit_streamdeck_ip()
+        elif selected_menu == f"COM {self.menu_system.get_companion_ip()}" or selected_menu == "IP address":
+            print('companion IP')
+            #TODO edit_companion_ip()
+        elif selected_menu == "DHCP":
+            print("DHCP")
+            #TODO DHCP
+        elif selected_menu == "Change Lock":
+            print("Lock")
+            #TODO edit_pass_menu()
+        elif selected_menu == "Restart Network":
+            print("Restart Network")
+            #TODO reboot_network_screen()        
+            #TODO Pi().restart_network()
+        elif selected_menu == "Restart Companion":
+            print('Restart Companion')
+            #TODO satellite.restart_service()
+        elif selected_menu == "Restart PI":
+            print('Restart Pi')
+            #TODO reboot_screen()
+            #TODO Pi().reboot()       
 
 class Lock:
     def __init__(self):
@@ -158,9 +195,16 @@ class Lock:
         # Check if the system is locked and handle accordingly
         pass
 
-class Network:
-    def __init__(self):
-        pass
+class NetworkManager:
+    def __init__(self, connection_name='Wired\ connection\ 1'):
+        self.connection_name = connection_name
+        self.connection_file = f"/etc/NetworkManager/system-connections/{self.connection_name}.nmconnection"
+        self.previous_ip = None
+
+    def get_ipv4(self):
+        result = os.popen(f"nmcli -g IP4.ADDRESS connection show {self.connection_name}").read().strip()
+        ip_address = result.split("/")[0]
+        return ip_address
 
 class SatelliteConfigManager:
     def __init__(self, file_path):
@@ -189,7 +233,6 @@ class SatelliteConfigManager:
         try:
             with open("/home/satellite/satellite-config.json") as f:
                 config_data = json.load(f)
-                print(config_data.get("remoteIp"))
                 return config_data.get("remoteIp")
         except FileNotFoundError:
             print(f"File {'/home/satellite/satellite-config.json'} not found.")
@@ -211,13 +254,13 @@ class SatelliteConfigManager:
 class MenuSystem:
     def __init__(self):
         self.display = Display()
-        self.menus = Menus(self.display, self)
+        self.network = NetworkManager() 
         self.lock = Lock()
-        self.network = Network()
         self.satellite = SatelliteConfigManager('/home/satellite/satellite-config.json')
         self.highlight = 1
         self.encoder = Encoder(6, 13, 5, self.update, self.button)
         #self.display.display_logo('/home/peitsman/Streamdeck Companion project/assets/peitsman black white.bmp')
+        self.menus = Menus(self.display, self)
 
     def update(self, value, direction):
         if direction == "R":
@@ -229,14 +272,23 @@ class MenuSystem:
             if self.highlight < 1:
                 self.highlight = len(self.menus.current_menu)
         self.menus.update_display(self.highlight)
-    
+
+    def get_ipv4_placeholder(self):
+        ip = self.network.get_ipv4()
+        return ip
+
+    def get_companion_ip(self):
+        ip = self.satellite.load_companion_ip()
+        return ip
+
     def button(self):
         self.menus.load_new_menu()
 
     def run(self):
         self.menus.update_display()
         while True:
-            self.lock.check_lock()
+            time.sleep(0.1)
+            #self.lock.check_lock()
 
 if __name__ == "__main__":
     menu_system = MenuSystem()
