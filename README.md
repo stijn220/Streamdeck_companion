@@ -23,6 +23,7 @@ Part of the companion satellite documentation:
 ```
 sudo -i
 sudo curl https://raw.githubusercontent.com/bitfocus/companion-satellite/main/pi-image/install.sh | bash
+exit
 ```
 
 To make sure the latest version is running, run:
@@ -50,34 +51,34 @@ Update and upgrade the system:
 ```
 sudo apt update
 sudo apt upgrade -y
+
+sudo rm /usr/lib/python3.11/EXTERNALLY-MANAGED
 ```
 
 Install Python and necessary packages:
 ```
-sudo apt-get install python3-pip
-
-#sudo apt install python3 python3-pip network-manager -y
+sudo apt-get install python3-pip -y
+```
+```
+cd ~
+sudo apt install python3-adafruit-python-shell
+wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
 ```
 
+#sudo apt install python3 python3-pip network-manager -y
 #IGNORE sudo rm /usr/lib/python3.11/EXTERNALLY-MANAGED
 
 Navigate to the home directory and install additional Python libraries:
 ```
-cd ~
-
-sudo apt install git
-
-pip3 install --upgrade adafruit-python-shell
-
-wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
-sudo -E env PATH=$PATH python3 raspi-blinka.py
-
 sudo python -m pip install --upgrade pip setuptools wheel
 
-sudo pip install Adafruit-SSD1306 adafruit-circuitpython-ssd1306 pillow psuti
+sudo pip install Adafruit-SSD1306 adafruit-circuitpython-ssd1306 pillow psutil
+
+sudo apt install python3-rpi-lgpio
 
 sudo apt install dhcpcd
 sudo service NetworkManager start
+sudo apt install git
 ```
 
 #sudo service NetworkManager start
