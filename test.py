@@ -1,20 +1,9 @@
-import mainv2
+import network
 
-# Create an instance of MenuSystem
-menu_system = mainv2.MenuSystem()
-
-# Create an instance of NetworkManager directly
-nm = mainv2.NetworkManager()
-
-# Get IPv4 address using NetworkManager instance
-ip = nm.get_ipv4()
-
-# Get IPv4 address using NetworkManager instance from MenuSystem instance
-ip2 = menu_system.network.get_ipv4()
-
-print(menu_system.get_ipv4_placeholder())
-
-# Print the IPv4 address and its type
-print(ip2)
-print(type(ip2))
- 
+net = network.PiNetwork()
+print("Before setting static IP:")
+net.show_current_network_info()
+# Set static IP address
+net.set_static_ip(ip_address='192.168.178.60')
+print("\nAfter setting static IP:")
+net.show_current_network_info()
