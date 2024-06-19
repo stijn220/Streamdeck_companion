@@ -1,12 +1,12 @@
+import os
 import time
 import board
 import busio
 import RPi.GPIO as GPIO
 from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
-import globalsetting
-from myFunctions import functionHandlersDictionary
-from myClasses import myButton, myButtonsList
+import menusystem.globalsetting as globalsetting
+from menusystem.myFunctions import functionHandlersDictionary
 
 # Initialize OLED display
 i2c = busio.I2C(board.SCL, board.SDA)
