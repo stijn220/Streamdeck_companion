@@ -54,7 +54,9 @@ sudo apt upgrade -y
 
 Install Python and necessary packages:
 ```
-sudo apt install python3 python3-pip network-manager -y
+sudo apt-get install python3-pip
+
+#sudo apt install python3 python3-pip network-manager -y
 ```
 
 #IGNORE sudo rm /usr/lib/python3.11/EXTERNALLY-MANAGED
@@ -62,12 +64,20 @@ sudo apt install python3 python3-pip network-manager -y
 Navigate to the home directory and install additional Python libraries:
 ```
 cd ~
+
 sudo apt install git
+
 pip3 install --upgrade adafruit-python-shell
+
 wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
 sudo -E env PATH=$PATH python3 raspi-blinka.py
+
 sudo python -m pip install --upgrade pip setuptools wheel
+
 sudo pip install Adafruit-SSD1306 adafruit-circuitpython-ssd1306 pillow psuti
+
+sudo apt install dhcpcd
+sudo service NetworkManager start
 ```
 
 #sudo service NetworkManager start
@@ -79,6 +89,8 @@ git clone https://github.com/stijn220/Streamdeck_companion.git
 cd Streamdeck_companion
 ```
 
+
+#TODO
 ### setup the Peitsman logo
 set the Peitsman logo as default on the streamdeck:
 ```
