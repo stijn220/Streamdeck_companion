@@ -1,0 +1,4 @@
+Main Menu
+{local_ip},997,display_ip_local
+{remote_ip},997,display_ip_remote
+Settings,1,Menu

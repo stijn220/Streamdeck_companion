@@ -1,0 +1,4 @@
+Local IP
+DHCP,998,change_ip_local_dhcp
+IP Address,998,change_ip_local_address
+Back,2,Menu

@@ -108,3 +108,8 @@ sudo systemctl restart satellite
 
 ### boot py file on startup
 sudo chmod 755 "/home/peitsman/Streamdeck Companion project/launcher.sh"
+
+
+
+# Sources 
+- https://github.com/jpuk/rpi-128x64-oled-menusystem

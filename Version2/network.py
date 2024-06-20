@@ -101,7 +101,7 @@ static domain_name_servers={','.join(dns_servers)}
 
     def get_current_ip(self):
         result = subprocess.run(['ip', 'addr', 'show', self.interface], capture_output=True, text=True)
-        match = re.search(r'inet ([\d.]+/\d+)', result.stdout)
+        match = re.search(r'inet ([\d.]+)/\d+', result.stdout)
         return match.group(1) if match else None
 
     def get_dhcp_state(self):

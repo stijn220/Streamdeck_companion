@@ -1,11 +1,15 @@
 import os
 import time
+from network import PiNetwork
+
+network = PiNetwork()
 
 def display_ip_local():
-    print("Local IP")
+    return 'local: ' + network.get_current_ip()
+
 
 def display_ip_remote():
-    print("Remote IP")
+    return 'remote: ' +  '192.168.178.159'
 
 def change_ip_local_dhcp():
     print("Change Local IP to DHCP")
