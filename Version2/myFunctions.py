@@ -1,6 +1,7 @@
 import os
 import time
 from network import PiNetwork
+from main import IpMenu
 
 network = PiNetwork()
 
@@ -16,6 +17,8 @@ def change_ip_local_dhcp():
 
 def change_ip_local_address():
     print("Change Local IP Address")
+    menu = main.IpMenu(network.get_current_ip(), 'Local')
+    menu.display()
 
 def change_ip_remote_address():
     print("Change Remote IP Address")

@@ -72,3 +72,6 @@ class Encoder:
     
     def getValue(self):
         return self.value
+    
+    def clean_gpio(self):
+        GPIO.cleanup()
