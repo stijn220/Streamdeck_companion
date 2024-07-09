@@ -2,12 +2,45 @@ import os
 import time
 import board
 import busio
+import json
+import subprocess
 import RPi.GPIO as GPIO
 from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
 import globalsetting
 from encoder import Encoder
 from network import PiNetwork
+
+class Satellite:
+    def __init__(self):
+        self.satellite_folder = globalsetting.SATELLITE_FOLDER
+        self.satellite_config = globalsetting.SATELLITE_CONFIG
+        
+    
+    def get_remote_ip(self):
+        try:
+            with open(self.satellite_config) as f:
+                config_data = json.load(f)
+                return config_data.get('remoteIp')
+        except FileNotFoundError:
+            print(f"File {self.satellite_config} not found.")
+        except PermissionError:
+            print(f"Permission denied: Unable to access {self.satellite_config}.")
+            return 'Error'
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+
+    def start_service(self):
+        try:
+            subprocess.run(['sudo', 'systemctl', 'start', 'satellite'])
+        except subprocess.CalledProcessError as e:
+            raise ValueError(f"Error rebooting: {e}")
+    def restart_service(self):
+        try:
+            subprocess.run(['sudo', 'systemctl', 'restart', 'satellite'])
+        except subprocess.CalledProcessError as e:
+            raise ValueError(f"Error rebooting: {e}")
 
 
 class Functions:
@@ -24,7 +57,7 @@ class Functions:
             "restart_companion": self.restart_companion,
             "restart_raspberry": self.restart_raspberry,
         }
-
+        self.satellite = Satellite()
     def display_ip_local(self):
         try:
             return 'local: ' + self.network.get_current_ip()
@@ -32,20 +65,22 @@ class Functions:
             return f"Error: {e}"
 
     def display_ip_remote(self):
-        return 'remote: ' + '192.168.178.159'
+        return 'remote: ' + self.satellite.get_remote_ip()
 
     def change_ip_local_dhcp(self):
         print("Change Local IP to DHCP")
 
     def change_ip_local_address(self):
-        print("Change Local IP Address")
         local_ip_menu = IpMenu(self.network.get_current_ip(), 'Local')
         global current_menu
         current_menu = local_ip_menu
         local_ip_menu.display()
 
     def change_ip_remote_address(self):
-        print("Change Remote IP Address")
+        remote_ip_menu = IpMenu(self.satellite.get_remote_ip(), 'Remote')
+        global current_menu
+        current_menu = remote_ip_menu
+        remote_ip_menu.display()
 
     def change_code(self):
         print("Change Code")
@@ -58,7 +93,6 @@ class Functions:
 
     def restart_raspberry(self):
         print("Restart Raspberry")
-
 
 class IpMenu:
     def __init__(self, ip, instance):
@@ -79,6 +113,19 @@ class IpMenu:
     def get_ip_from_segments(self):
         return ''.join(self.ip_segments)
 
+    def is_valid_ip(self, ip):
+        segments = ip.split('.')
+        if len(segments) != 4:
+            return False
+        for segment in segments:
+            if not segment.isdigit():
+                return False
+            if not (0 <= int(segment) <= 255):
+                return False
+            if len(segment) > 1 and segment.startswith('0'):
+                return False
+        return True
+    
     def display(self):
         self.draw.rectangle((0, 0, width, height), outline=0, fill=0)
         self.draw.text((2, 0), "Peitsman - " + self.instance, font=self.font, fill=255)
@@ -118,7 +165,7 @@ class IpMenu:
 
         oled.image(self.image)
         oled.show()
-        
+
     def next_digit(self):
         while True:
             self.selected_index = ((self.selected_index + 1) % (len(self.ip_segments) + 2))
@@ -151,10 +198,7 @@ class IpMenu:
             if new_value < 0:
                 new_value = 9
             self.ip_segments[self.selected_index] = str(new_value)
-
-            # Adjust segment if necessary
             self.adjust_segment()
-
             self.display()
 
     def adjust_segment(self):
@@ -177,39 +221,37 @@ class IpMenu:
                 self.ip_segments[segment_index * 4 + 2] = '5'
 
     def select_item(self):
-        if self.selected_index == len(self.ip_segments):
-            # Back button selected
-            self.back_button_pressed()
-        elif self.selected_index == len(self.ip_segments) + 1:
-            # Submit button selected
-            self.submit_button_pressed()
-        else:
-            # Toggle edit mode for IP address segment
+        if self.selected_index < len(self.ip_segments) :
             self.edit_mode = not self.edit_mode
             self.display()
+        elif self.selected_index == len(self.ip_segments):
+            global back
+            back()
+        elif self.selected_index == len(self.ip_segments) + 1:
+            self.submit_button_pressed()
 
     def next_item(self):
         if self.edit_mode:
                 self.increment_digit()
         else:
             self.next_digit()
+
     def prev_item(self):
         if self.edit_mode:
                 self.decrement_digit()
         else:
             self.prev_digit()
 
-    def back_button_pressed(self):
-        # Handle back button press
-        print("Back button pressed")
-        # Example: Go back to previous screen or perform any other action
-
     def submit_button_pressed(self):
-        # Handle submit button press
-        print("Submit button pressed with IP:", self.get_ip_from_segments())
-        # Example: Save changes or perform any other action
-
-
+        ip_to_submit = self.get_ip_from_segments()
+        if self.is_valid_ip(ip_to_submit):
+            print("Submit button pressed with valid IP:", ip_to_submit)
+        else:
+            print("Invalid IP address entered:", ip_to_submit)
+            self.draw.rectangle((0, 0, width, height), outline=0, fill=0)
+            self.draw.text((2, 0), "Invalid IP", font=self.font, fill=255)
+            oled.image(self.image)
+            oled.show()
 
 class MenuSystem:
     def __init__(self, menu_folder):
@@ -268,17 +310,13 @@ class MenuSystem:
         oled.show() 
 
     def select_item(self):
-        self.selected_index += 1
-
-        item = self.menu_data[self.current_screen][self.selected_index]
+        item = self.menu_data[self.current_screen][self.selected_index + 1]
         flag = int(item[1])
         if flag == 999 or flag == 997:
-            self.selected_index -= 1
-            self.display_menu()
+            #self.display_menu()
             return  # informational, do nothing
         elif flag == 998:
             functions.function_handlers[item[2]]()
-
             return
         else:
             self.current_screen = flag
@@ -287,6 +325,7 @@ class MenuSystem:
         self.scroll_offset = 0  # Reset scroll offset after menu change
         self.selected_index = 0
         self.display_menu()  # Refresh the menu display after selection
+
 
     def next_item(self):
         if self.selected_index < len(self.menu_data[self.current_screen]) - 2:
@@ -323,6 +362,10 @@ class MenuSystem:
         while True:
             time.sleep(1)
 
+def back():
+    global current_menu
+    current_menu = menu_system
+    menu_system.display_menu()
 
 # Initialize OLED display
 i2c = busio.I2C(board.SCL, board.SDA)
@@ -352,9 +395,11 @@ current_menu = menu_system
 
 # Button handling
 def button_select_pressed():
+    # global current_menu
     current_menu.select_item()
 
 def rotary_encoder(value, direction):
+    # global current_menu
     if direction == "R":
         current_menu.next_item()
     elif direction == "L":
@@ -363,10 +408,16 @@ def rotary_encoder(value, direction):
 # Initialize encoder
 encoder = Encoder(6, 13, 5, rotary_encoder, button_select_pressed)
 
+satellite = Satellite()
+
 # Main loop
 try:
     while True:
         menu_system.check_lock_screen()
         time.sleep(0.1)
 except KeyboardInterrupt:
+    draw.rectangle((0, 0, width, height), outline=0, fill=0)
+    draw.text((5, height // 2 - 8), "Offline", font=font, fill=255)
+    oled.image(image)
+    oled.show()
     GPIO.cleanup()

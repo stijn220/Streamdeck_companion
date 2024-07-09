@@ -9,8 +9,7 @@
 - Streamdeck
 
 ### install the OS
-install the latest version of [Pi 64bit lite](https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-03-15/2024-03-15-raspios-bookworm-arm64-lite.img.xz) on the Raspberry Pi 4b. We recommend
-\ to use the [Raspberry Pi Imager](https://downloads.raspberrypi.org/imager/imager_latest.exe)
+install the latest version of [Pi 64bit lite](https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-03-15/2024-03-15-raspios-bookworm-arm64-lite.img.xz) on the Raspberry Pi 4b. We recommend to use the [Raspberry Pi Imager](https://downloads.raspberrypi.org/imager/imager_latest.exe)
 
 
 ### Setup the companion satellite
